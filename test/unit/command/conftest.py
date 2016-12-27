@@ -32,5 +32,11 @@ def patched_ansible_lint(mocker):
 
 
 @pytest.fixture
+def patched_ansible_galaxy(mocker):
+    return mocker.patch(
+        'molecule.dependency.ansible_galaxy.AnsibleGalaxy.execute')
+
+
+@pytest.fixture
 def patched_testinfra(mocker):
     return mocker.patch('molecule.verifier.testinfra.Testinfra.execute')
