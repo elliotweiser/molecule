@@ -37,11 +37,11 @@ def test_config_private_member(ansible_galaxy_instance):
 
 
 def test_default_options_property(ansible_galaxy_instance):
-    x = {
-        'role_file': 'requirements.yml',
-        'roles_path': '.molecule/roles',
-        'force': True
-    }
+    role_file = os.path.join(
+        ansible_galaxy_instance._config.scenario.directory, 'requirements.yml')
+    roles_path = os.path.join(
+        ansible_galaxy_instance._config.ephemeral_directory, 'roles')
+    x = {'role_file': role_file, 'roles_path': roles_path, 'force': True}
 
     assert x == ansible_galaxy_instance.options
 
@@ -55,10 +55,14 @@ def test_enabled_property(ansible_galaxy_instance):
 
 
 def test_options_property(ansible_galaxy_instance):
+    role_file = os.path.join(
+        ansible_galaxy_instance._config.scenario.directory, 'requirements.yml')
+    roles_path = os.path.join(
+        ansible_galaxy_instance._config.ephemeral_directory, 'roles')
     x = {
         'force': True,
-        'role_file': 'requirements.yml',
-        'roles_path': '.molecule/roles'
+        'role_file': role_file,
+        'roles_path': roles_path,
     }
 
     assert x == ansible_galaxy_instance.options
@@ -78,9 +82,12 @@ def test_options_property(ansible_galaxy_instance):
     indirect=['config_instance'])
 def test_options_property_handles_dependency_options(config_instance):
     i = ansible_galaxy.AnsibleGalaxy(config_instance)
+    role_file = os.path.join(config_instance.scenario.directory,
+                             'requirements.yml')
+    roles_path = os.path.join(config_instance.ephemeral_directory, 'roles')
     x = {
-        'role_file': 'requirements.yml',
-        'roles_path': '.molecule/roles',
+        'role_file': role_file,
+        'roles_path': roles_path,
         'foo': 'bar',
         'force': True
     }
@@ -97,10 +104,13 @@ def test_options_property_handles_dependency_options(config_instance):
     indirect=['config_instance'])
 def test_options_property_handles_cli_args(config_instance):
     i = ansible_galaxy.AnsibleGalaxy(config_instance)
+    role_file = os.path.join(config_instance.scenario.directory,
+                             'requirements.yml')
+    roles_path = os.path.join(config_instance.ephemeral_directory, 'roles')
     x = {
         'force': True,
-        'role_file': 'requirements.yml',
-        'roles_path': '.molecule/roles'
+        'role_file': role_file,
+        'roles_path': roles_path,
     }
 
     # Does nothing.  The `ansible-galaxy` command does not support
@@ -108,15 +118,23 @@ def test_options_property_handles_cli_args(config_instance):
     assert x == i.options
 
 
+# The bake command is passed options through kwargs expansion.
+# Since dicts are unordered, difficult to assert in a sane way.
 def test_bake(ansible_galaxy_instance):
     ansible_galaxy_instance.bake()
-    x = ('{} '
-         'install '
-         '--role_file=requirements.yml '
-         '--roles_path=.molecule/roles '
-         '--force').format(str(sh.ansible_galaxy))
+    role_file = os.path.join(
+        ansible_galaxy_instance._config.scenario.directory, 'requirements.yml')
+    roles_path = os.path.join(
+        ansible_galaxy_instance._config.ephemeral_directory, 'roles')
+    command = str(ansible_galaxy_instance._ansible_galaxy_command).split()
 
-    assert x == ansible_galaxy_instance._ansible_galaxy_command
+    assert str(sh.ansible_galaxy) == command.pop(0)
+    assert 'install' == command.pop(0)
+    x = [
+        '--force', '--role-file={}'.format(role_file),
+        '--roles-path={}'.format(roles_path)
+    ]
+    assert x == sorted(command)
 
 
 def test_execute(patched_run_command, ansible_galaxy_instance):
@@ -139,17 +157,25 @@ def test_execute_does_not_execute(patched_run_command,
     assert not patched_run_command.called
 
 
+# The bake command is passed options through kwargs expansion.
+# Since dicts are unordered, difficult to assert in a sane way.
 def test_execute_bakes(patched_run_command, ansible_galaxy_instance):
     ansible_galaxy_instance.execute()
-
+    role_file = os.path.join(
+        ansible_galaxy_instance._config.scenario.directory, 'requirements.yml')
+    roles_path = os.path.join(
+        ansible_galaxy_instance._config.ephemeral_directory, 'roles')
     assert ansible_galaxy_instance._ansible_galaxy_command is not None
 
-    cmd = ('{} '
-           'install '
-           '--role_file=requirements.yml '
-           '--roles_path=.molecule/roles '
-           '--force').format(str(sh.ansible_galaxy))
-    patched_run_command.assert_called_once_with(cmd, debug=None)
+    command = str(patched_run_command.call_args[0][0]).split()
+    assert str(sh.ansible_galaxy) == command.pop(0)
+    assert 'install' == command.pop(0)
+    x = [
+        '--force', '--role-file={}'.format(role_file),
+        '--roles-path={}'.format(roles_path)
+    ]
+    assert x == sorted(command)
+    assert {'debug': None} == patched_run_command.call_args[1]
 
 
 def test_executes_catches_and_exits_return_code(patched_run_command,

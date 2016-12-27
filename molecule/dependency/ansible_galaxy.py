@@ -39,10 +39,12 @@ class AnsibleGalaxy(base.Base):
 
     @property
     def default_options(self):
-        roles_path = os.path.join('.molecule', 'roles')
+        role_file = os.path.join(self._config.scenario.directory,
+                                 'requirements.yml')
+        roles_path = os.path.join(self._config.ephemeral_directory, 'roles')
         return {
             'force': True,
-            'role_file': 'requirements.yml',
+            'role_file': role_file,
             'roles_path': roles_path
         }
 
@@ -55,10 +57,10 @@ class AnsibleGalaxy(base.Base):
         """
         self._ansible_galaxy_command = sh.ansible_galaxy.bake(
             'install',
-            self.options,
             _env=os.environ,
             _out=util.callback_info,
-            _err=util.callback_error)
+            _err=util.callback_error,
+            **self.options)
 
     def execute(self):
         """
